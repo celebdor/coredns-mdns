@@ -150,24 +150,28 @@ func (m *MDNS) BrowseMDNS() {
 	go func() {
 		log.Debug("Retrieving mDNS entries")
 		for entry := range entriesCh {
-			log.Debugf("Name: %s, Host: %s, AddrV4: %s, AddrV6: %s\n", entry.Name, entry.Host, entry.AddrV4, entry.AddrV6)
+			// Make a copy of the entry so mdns can't later overwrite our changes
+			localEntry := *entry
+			log.Debugf("Name: %s, Host: %s, AddrV4: %s, AddrV6: %s\n", localEntry.Name, localEntry.Host, localEntry.AddrV4, localEntry.AddrV6)
 			// Hacky - coerce .local to our domain
 			// I was having trouble using domains other than .local. Need further investigation.
 			// After further investigation, maybe this is working as intended:
 			// https://lists.freedesktop.org/archives/avahi/2006-February/000517.html
-			hostCustomDomain := m.ReplaceLocal(entry.Host)
-			(*m.mdnsHosts)[hostCustomDomain] = entry
+			hostCustomDomain := m.ReplaceLocal(localEntry.Host)
+			(*m.mdnsHosts)[hostCustomDomain] = &localEntry
 		}
 	}()
 
 	go func() {
 		log.Debug("Retrieving SRV mDNS entries")
 		for entry := range srvEntriesCh {
-			log.Debugf("Name: %s, Host: %s, AddrV4: %s, AddrV6: %s\n", entry.Name, entry.Host, entry.AddrV4, entry.AddrV6)
-			hostCustomDomain := m.ReplaceLocal(entry.Host)
-			srvName := strings.SplitN(m.ReplaceLocal(entry.Name), ".", 2)[1]
-			entry.Host = hostCustomDomain
-			(*m.srvHosts)[srvName] = append((*m.srvHosts)[srvName], entry)
+			// Make a copy of the entry so mdns can't later overwrite our changes
+			localEntry := *entry
+			log.Debugf("Name: %s, Host: %s, AddrV4: %s, AddrV6: %s\n", localEntry.Name, localEntry.Host, localEntry.AddrV4, localEntry.AddrV6)
+			hostCustomDomain := m.ReplaceLocal(localEntry.Host)
+			srvName := strings.SplitN(m.ReplaceLocal(localEntry.Name), ".", 2)[1]
+			localEntry.Host = hostCustomDomain
+			(*m.srvHosts)[srvName] = append((*m.srvHosts)[srvName], &localEntry)
 		}
 	}()
 
